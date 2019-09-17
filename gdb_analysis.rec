@@ -1,0 +1,38 @@
+#0  __ip_append_data (sk=0xffff880215ddbc00, queue=0xffff880215ddbd30, cork=0xffff880215ddbf10,
+    pfrag=0xffff8801f74ac4a8, getfrag=0xffffffff817c4410 <ip_generic_getfrag>, from=0xffff88021577fe30,
+    length=3492, transhdrlen=8, flags=32768, fl4=<optimized out>)
+    at /build/linux-hwe-0IbwuF/linux-hwe-4.8.0/net/ipv4/ip_output.c:864
+#1  0xffffffff817c5dea in ip_append_data (sk=0xffff880215ddbc00, fl4=0xffff880215ddbf5c,
+    getfrag=0xffff880215ddbd30, from=<optimized out>, length=<optimized out>,
+    transhdrlen=<optimized out>, ipc=0xffff88021577fcf8, rtp=0xffff88021577fcf0, flags=<optimized out>)
+    at /build/linux-hwe-0IbwuF/linux-hwe-4.8.0/net/ipv4/ip_output.c:1186
+#2  0xffffffff817c6b14 in ip_append_data (sk=<optimized out>, fl4=<optimized out>,
+    getfrag=<optimized out>, from=<optimized out>, length=<optimized out>, transhdrlen=<optimized out>,
+    ipc=0xffff88021577fcf8, rtp=<optimized out>, flags=<optimized out>)
+    at /build/linux-hwe-0IbwuF/linux-hwe-4.8.0/net/ipv4/ip_output.c:1175
+#3  0xffffffff817f1182 in udp_sendmsg (sk=0xffff880215ddbc00, msg=0xffff88021577fe30, len=3484)
+    at /build/linux-hwe-0IbwuF/linux-hwe-4.8.0/net/ipv4/udp.c:1088
+
+
+
+#0  skb_release_data (skb=0xffff88021295aa00)
+    at /build/linux-hwe-0IbwuF/linux-hwe-4.8.0/net/core/skbuff.c:605
+#1  0xffffffff8176a164 in skb_release_all (skb=0xffff88021295aa00)
+    at /build/linux-hwe-0IbwuF/linux-hwe-4.8.0/net/core/skbuff.c:670
+#2  0xffffffff8176a1c2 in __kfree_skb (skb=<optimized out>)
+    at /build/linux-hwe-0IbwuF/linux-hwe-4.8.0/net/core/skbuff.c:684
+#3  kfree_skb (skb=0x561c2c6c2140) at /build/linux-hwe-0IbwuF/linux-hwe-4.8.0/net/core/skbuff.c:705
+#4  0xffffffff817c5e93 in __ip_flush_pending_frames (queue=0xffff880215ddbd30, cork=0xffff880215ddbf10,
+    sk=<optimized out>) at /build/linux-hwe-0IbwuF/linux-hwe-4.8.0/net/ipv4/ip_output.c:1476
+#5  0xffffffff817c74ac in ip_flush_pending_frames (sk=<optimized out>)
+    at /build/linux-hwe-0IbwuF/linux-hwe-4.8.0/net/ipv4/ip_output.c:1483
+#6  0xffffffff817f103b in udp_flush_pending_frames (sk=<optimized out>)
+    at /build/linux-hwe-0IbwuF/linux-hwe-4.8.0/net/ipv4/udp.c:715
+#7  udp_sendmsg (sk=0xffff880215ddbc00, msg=0xffff8801b9c67e30, len=1)
+    at /build/linux-hwe-0IbwuF/linux-hwe-4.8.0/net/ipv4/udp.c:1092
+#8  0xffffffff817fe5f5 in inet_sendmsg (sock=<optimized out>, msg=<optimized out>, size=<optimized out>)
+    at /build/linux-hwe-0IbwuF/linux-hwe-4.8.0/net/ipv4/af_inet.c:740
+#9  0xffffffff81760a58 in sock_sendmsg_nosec (msg=<optimized out>, sock=<optimized out>)
+    at /build/linux-hwe-0IbwuF/linux-hwe-4.8.0/net/socket.c:609
+#10 sock_sendmsg (sock=0xffff8802139e0c80, msg=0xffff8801b9c67e30)
+    at /build/linux-hwe-0IbwuF/linux-hwe-4.8.0/net/socket.c:619
