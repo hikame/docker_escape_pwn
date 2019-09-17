@@ -1,6 +1,6 @@
 52.87.94.70 registry-1.docker.io
 104.18.121.25 production.cloudflare.docker.com
-34.233.151.211 auth.docker.io
+# 34.233.151.211 auth.docker.io
 151.101.42.217 fastly.cdn.snapcraft.io
 91.189.92.20 api.snapcraft.io
 52.1.152.219 37a99p2kce.execute-api.us-east-1.amazonaws.com
