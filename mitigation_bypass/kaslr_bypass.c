@@ -450,7 +450,7 @@ static void cpuinfo_check() {
 	int rv = cpuinfo_scan();
 	if (rv & CPUINFO_SMAP) {
 		info("[-] SMAP detected, no bypass available, aborting\n");
-		exit(EXIT_FAILURE);
+		// exit(EXIT_FAILURE);
 	}
 }
 
