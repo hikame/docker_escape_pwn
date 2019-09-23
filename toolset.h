@@ -45,4 +45,10 @@ static bool write_file(const char* file, const char* what, ...) {
 	return true;
 }
 
+void raw_input() {
+  int i;
+  printf("> ");
+  read(0, (char*)&i, 4);
+}
+
 #endif

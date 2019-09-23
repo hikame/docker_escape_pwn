@@ -20,8 +20,8 @@
 
 #include "./kernel_infos.h"
 
-#define ENABLE_KASLR_BYPASS		0
-#define ENABLE_SMEP_BYPASS		0
+#define ENABLE_KASLR_BYPASS		1
+#define ENABLE_SMEP_BYPASS		1
 
 #if ENABLE_KASLR_BYPASS
 #include "./kaslr_bypass.h"
