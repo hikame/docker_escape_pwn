@@ -10,8 +10,8 @@ int main(int argc, char** argv) {
         printf("Wrong argvs, exit...\n");
         return -1;
     }
-    unsigned long start = atol(argv[1]);
-    unsigned long end = atol(argv[2]);
+    unsigned long start = strtol(argv[1], 0, 16);
+    unsigned long end = strtol(argv[2], 0, 16);
     if(start == 0 || end == 0){
         printf("Invalid argvs, exit...\n");
         return -1;
