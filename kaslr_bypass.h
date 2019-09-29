@@ -32,7 +32,7 @@ void locate_first_writable() {
 	
 	unsigned long start = 0xffffffff81000000;
 	unsigned long inc =   0x0000000000000010;
-	unsigned long last =  0xfffffffff0000000;
+	unsigned long last =  0xffffffff82522000;
 
 	unsigned long guess = start;
 	size_t count = 0;
