@@ -12,5 +12,10 @@ int main(int argc, char** argv) {
     }
     unsigned long start = atol(argv[1]);
     unsigned long end = atol(argv[2]);
+    if(start == 0 || end == 0){
+        printf("Invalid argvs, exit...\n");
+        return -1;
+    }
+
 	syscall(SYS_check_kernel_mem, start, end);
 }
