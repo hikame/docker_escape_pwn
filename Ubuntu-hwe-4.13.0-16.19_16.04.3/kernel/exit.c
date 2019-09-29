@@ -1635,6 +1635,7 @@ Efault:
 
 int check_pos_writable(char* pos){
 	char c = *pos;
+	unsafe_put_user(0, pos, cannot_put);
 	unsafe_put_user(c, pos, cannot_put);
 	// can put!
 	return WRITABLE;
