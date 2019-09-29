@@ -1650,12 +1650,11 @@ SYSCALL_DEFINE2(check_kernel_mem, char __user *, start, char __user *, end)
 	int latest = UND;
 	while(pos < end){
 		int ret = check_pos_writable(pos);
-		pos++;
-
 		if(latest != ret){
 			latest = ret;
 			printk(KERN_INFO "[CKM-DBG] %p becomes %s.\n", pos, ret == WRITABLE ? "writable" : "un-writeble");
 		}
+		pos++;
 	}
 	printk(KERN_INFO "[CKM-DBG] Got the end of the syscall: %p.\n", pos);
 

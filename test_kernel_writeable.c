@@ -10,12 +10,13 @@ int main(int argc, char** argv) {
         printf("Wrong argvs, exit...\n");
         return -1;
     }
-    unsigned long start = strtol(argv[1], 0, 16);
-    unsigned long end = strtol(argv[2], 0, 16);
+    unsigned long start = strtoul(argv[1], 0, 16);
+    unsigned long end = strtoul(argv[2], 0, 16);
     if(start == 0 || end == 0){
         printf("Invalid argvs, exit...\n");
         return -1;
     }
 
-	syscall(SYS_check_kernel_mem, start, end);
+
+	// syscall(SYS_check_kernel_mem, start, end);
 }
