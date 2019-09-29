@@ -17,6 +17,5 @@ int main(int argc, char** argv) {
         return -1;
     }
 
-
-	// syscall(SYS_check_kernel_mem, start, end);
+	syscall(SYS_check_kernel_mem, start, end);
 }
