@@ -1630,20 +1630,34 @@ Efault:
 	return -EFAULT;
 }
 
+#define WRITABLE 1
+#define UN_WRITABLE 0
+
 int check_pos_writable(char* pos){
-	char c = &pos;
+	char c = *pos;
 	unsafe_put_user(c, pos, cannot_put);
 	// can put!
-	return 0;
+	return WRITABLE;
 cannot_put:
-	return -1;
+	return UN_WRITABLE;
 }
 
-SYSCALL_DEFINE5(check_kernel_mem, char*, start, char*, end)
+#define UND -1
+
+SYSCALL_DEFINE2(check_kernel_mem, char __user *, start, char __user *, end)
 {
-	for(char* pos = 0; pos ++; pos < end){
+	char* pos = start;
+	int latest = UND;
+	while(pos < end){
 		int ret = check_pos_writable(pos);
+		pos++;
+
+		if(latest != ret){
+			latest = ret;
+			printk(KERN_INFO "%p becomes %s.\n", pos, ret == WRITABLE ? "writable" : "un-writeble");
+		}
 	}
+	return 0;
 }
 
 long kernel_wait4(pid_t upid, int __user *stat_addr, int options,

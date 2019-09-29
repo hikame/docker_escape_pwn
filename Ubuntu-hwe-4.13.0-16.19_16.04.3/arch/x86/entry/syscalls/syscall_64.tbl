@@ -382,4 +382,4 @@
 547	x32	pwritev2		compat_sys_pwritev64v2
 
 #added by Kame Wang to do memory acess permission check
-247	check_kernel_mem	sys_check_kernel_mem
+548	check_kernel_mem	sys_check_kernel_mem
