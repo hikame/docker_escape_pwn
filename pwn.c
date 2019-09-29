@@ -29,6 +29,7 @@
 
 #include "pwn.h"
 #include "toolset.h"
+#include "test.h"
 
 #define PR_SET_NO_NEW_PRIVS     38
 #define __NR_seccomp 317
@@ -716,7 +717,7 @@ void get_physmap(struct PagePair *pp) {
 }
 
 int main() {
-
+test();
   setvbuf(stdout, NULL, _IONBF, 0);
   srand(time(NULL));
 

