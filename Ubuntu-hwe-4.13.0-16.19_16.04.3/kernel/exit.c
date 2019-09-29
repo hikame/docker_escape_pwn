@@ -1630,6 +1630,22 @@ Efault:
 	return -EFAULT;
 }
 
+int check_pos_writable(char* pos){
+	char c = &pos;
+	unsafe_put_user(c, pos, cannot_put);
+	// can put!
+	return 0;
+cannot_put:
+	return -1;
+}
+
+SYSCALL_DEFINE5(check_kernel_mem, char*, start, char*, end)
+{
+	for(char* pos = 0; pos ++; pos < end){
+		int ret = check_pos_writable(pos);
+	}
+}
+
 long kernel_wait4(pid_t upid, int __user *stat_addr, int options,
 		  struct rusage *ru)
 {
