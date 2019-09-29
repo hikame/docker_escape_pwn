@@ -51,7 +51,6 @@ void locate_first_writable() {
 				// guess - inc is the end of the writeable position.
 				printf("[NO.%lu] %p - %p area is writable.\n", count, w_start, (guess - inc));
 				w_start = 0;
-				break;  // todo this is for debug
 			}
 		}
 		guess += inc;
